@@ -2,6 +2,8 @@
 // TODO 1: PREPARING ENVIRONMENT: 1) session 2) functions
 session_start();
 
+$aConfig = require_once 'dbConnect.php';
+
 // TODO 2: ROUTING
 if (!empty($_SESSION['auth'])) {
     header('Location: /admin.php');
@@ -14,41 +16,53 @@ if (!empty($_SESSION['auth'])) {
 $infoMessage = '';
 
 // 2. handle form data
+
+
 if (!empty($_POST['email']) && !empty($_POST['password'])) {
 
-    // 3. Check that user has already existed
     $isAlreadyRegistered = false;
-    $fileUsers = 'users.csv';
 
-    if (file_exists($fileUsers)) {
-        $sUsers = file_get_contents($fileUsers);
-        $aJsonsUsers = explode("\n", $sUsers);
+    // 3. Check that user has already existed
+    $db = mysqli_connect(
+        $aConfig['host'],
+        $aConfig['user'],
+        $aConfig['pass'],
+        $aConfig['name']
+    );
 
-        foreach ($aJsonsUsers as $jsonUser) {
-            $aUser = json_decode($jsonUser, true);
-            if (!$aUser) break;
+    $dbResponse = mysqli_query($db, 'SELECT * FROM users');
+    $aUsers = mysqli_fetch_all($dbResponse, MYSQLI_ASSOC);
+    mysqli_close($db);
 
-            foreach ($aUser as $email => $password) {
-                if (($email == $_POST['email']) && ($password == $_POST['password'])) {
-                    $isAlreadyRegistered = true;
+    foreach ($aUsers as $user) {
+        if (($user['email'] == $_POST['email']) && ($user['password'] == $_POST['password'])) {
+            $isAlreadyRegistered = true;
 
-                    $infoMessage = "Такой пользователь уже существует! Перейдите на страницу входа. ";
-                    $infoMessage .= "<a href='/login.php'>Страница входа</a>";
-                }
-            }
+            $infoMessage = "Такой пользователь уже существует! Перейдите на страницу входа. ";
+            $infoMessage .= "<a href='/login.php'>Страница входа</a>";
         }
     }
 
     if (!$isAlreadyRegistered) {
         // 4. Create new user
-        $aNewUser = [$_POST['email'] => $_POST['password']];
-        file_put_contents("users.csv", json_encode($aNewUser) . "\n", FILE_APPEND);
 
+        $db = mysqli_connect(
+            $aConfig['host'],
+            $aConfig['user'],
+            $aConfig['pass'],
+            $aConfig['name']
+        );
+        $query = "INSERT INTO users (email, password) VALUES (
+        '" . $_POST['email'] . "',
+        '" . $_POST['password'] . "'
+        )";
+        mysqli_query($db, $query);
+        mysqli_close($db);
         header('Location: /login.php');
         die;
     }
-
-} elseif (!empty($_POST)) {
+}
+elseif (!empty($_POST)) {
     $infoMessage = 'Заполните форму регистрации!';
 }
 

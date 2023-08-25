@@ -2,6 +2,8 @@
 // TODO 1: PREPARING ENVIRONMENT: 1) session 2) functions
 session_start();
 
+$aConfig = require_once 'dbConnect.php';
+
 // TODO 2: ROUTING
 if (!empty($_SESSION['auth'])) {
     header('Location: /admin.php');
@@ -17,25 +19,29 @@ $infoMessage = '';
 if (!empty($_POST['email']) && !empty($_POST['password'])) {
 
     // 3. Check that user has already existed
-    $sUsers = file_get_contents("users.csv");
-    $aJsonsUsers = explode("\n", $sUsers);
-
     $isAlreadyRegistered = false;
 
-    foreach ($aJsonsUsers as $jsonUser) {
-        $aUser = json_decode($jsonUser, true);
-        if (!$aUser) break;
+    // 3. Check that user has already existed
+    $db = mysqli_connect(
+        $aConfig['host'],
+        $aConfig['user'],
+        $aConfig['pass'],
+        $aConfig['name']
+    );
 
-        foreach ($aUser as $email => $password) {
-            if (($email == $_POST['email']) && ($password == $_POST['password'])) {
-                $isAlreadyRegistered = true;
+    $dbResponse = mysqli_query($db, 'SELECT * FROM users');
+    $aUsers = mysqli_fetch_all($dbResponse, MYSQLI_ASSOC);
+    mysqli_close($db);
 
-                $_SESSION['auth'] = true;
-                // $_SESSION['email'] = $_POST['email'];
+    foreach ($aUsers as $user) {
+        if (($user['email'] == $_POST['email']) && ($user['password'] == $_POST['password'])) {
+            $isAlreadyRegistered = true;
 
-                header("Location: admin.php");
-                die;
-            }
+            $_SESSION['auth'] = true;
+            // $_SESSION['email'] = $_POST['email'];
+
+            header("Location: admin.php");
+            die;
         }
     }
 
@@ -43,8 +49,8 @@ if (!empty($_POST['email']) && !empty($_POST['password'])) {
         $infoMessage = "Такого пользователя не существует. Перейдите на страницу регистрации. ";
         $infoMessage .= "<a href='register.php'>Страница регистрации</a>";
     }
-
-} elseif (!empty($_POST)) {
+}
+elseif (!empty($_POST)) {
     $infoMessage = 'Заполните форму авторизации!';
 }
 
